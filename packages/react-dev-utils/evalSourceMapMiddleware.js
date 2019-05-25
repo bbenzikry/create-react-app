@@ -13,8 +13,8 @@ function base64SourceMap(source) {
   return `data:application/json;charset=utf-8;base64,${base64}`;
 }
 
-function getSourceById(server, id) {
-  const module = server._stats.compilation.modules.find(m => m.id == id);
+function getSourceById(stats, id) {
+  const module = stats.compilation.modules.find(m => m.id == id);
   return module.originalSource();
 }
 
@@ -30,11 +30,15 @@ module.exports = function createEvalSourceMapMiddleware(server) {
     if (req.url.startsWith('/__get-internal-source')) {
       const fileName = req.query.fileName;
       const id = fileName.match(/webpack-internal:\/\/\/(.+)/)[1];
-      if (!id || !server._stats) {
+      let stats;
+      if (res.locals && res.locals.webpackStats)
+        stats = res.locals.webpackStats;
+      else stats = server ? server._stats : null;
+      if (!id || !stats) {
         next();
       }
 
-      const source = getSourceById(server, id);
+      const source = getSourceById(stats, id);
       const sourceMapURL = `//# sourceMappingURL=${base64SourceMap(source)}`;
       const sourceURL = `//# sourceURL=webpack-internal:///${module.id}`;
       res.end(`${source.source()}\n${sourceMapURL}\n${sourceURL}`);
